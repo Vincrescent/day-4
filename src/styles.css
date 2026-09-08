@@ -1,0 +1,198 @@
+/*
+ * Medieval 3D Chess — Stylesheet
+ * Dark stone-chamber aesthetic, minimal UI overlay
+ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #050302;
+  overflow: hidden;
+  font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif;
+  color: #d4b896;
+  user-select: none;
+}
+
+canvas { display: block; }
+
+/* ---------- Loader ---------- */
+#loader {
+  position: fixed; inset: 0; z-index: 200;
+  background: radial-gradient(ellipse at 50% 40%, #1a1008 0%, #050302 70%);
+  display: flex; align-items: center; justify-content: center;
+  transition: opacity 0.6s ease;
+}
+#loader.hidden { opacity: 0; pointer-events: none; }
+
+.loader-inner {
+  text-align: center;
+  max-width: 340px;
+  padding: 2.5rem 2rem;
+  border: 1px solid rgba(201, 168, 76, 0.2);
+  background: rgba(10, 8, 5, 0.8);
+}
+.loader-inner h2 {
+  font-size: 1.4rem;
+  letter-spacing: 0.35em;
+  color: #c9a84c;
+  text-transform: uppercase;
+  margin-bottom: 0.6rem;
+}
+.loader-inner p {
+  color: #8a7560;
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  margin-bottom: 1.5rem;
+}
+.loader-bar {
+  width: 100%; height: 3px;
+  background: rgba(201, 168, 76, 0.15);
+  border-radius: 2px; overflow: hidden;
+}
+.loader-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, #8b6914, #c9a84c, #f0d078);
+  transition: width 0.25s ease;
+}
+#loaderStatus {
+  display: block; margin-top: 0.6rem;
+  font-size: 0.7rem; color: #6b5b4a;
+  letter-spacing: 0.08em;
+}
+
+/* ---------- HUD ---------- */
+#ui {
+  position: fixed; inset: 0; z-index: 10;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+#ui.hidden { opacity: 0; pointer-events: none; }
+
+.panel {
+  pointer-events: auto;
+  background: rgba(8, 6, 4, 0.82);
+  border: 1px solid rgba(201, 168, 76, 0.25);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+/* Left panel — turn + status */
+.panel-left {
+  position: absolute; left: 1.2rem; top: 50%; transform: translateY(-50%);
+  padding: 1rem 1.2rem; min-width: 150px;
+}
+.turn-indicator {
+  font-size: 1rem;
+  letter-spacing: 0.18em;
+  color: #c9a84c;
+  text-transform: uppercase;
+  margin-bottom: 0.7rem;
+  line-height: 1.4;
+}
+.state-badge {
+  display: inline-block;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: rgba(201, 168, 76, 0.15);
+  border: 1px solid rgba(201, 168, 76, 0.4);
+  color: #e8d5a3;
+  margin-top: 0.4rem;
+  animation: badge-pulse 2s infinite;
+}
+.state-badge.danger {
+  background: rgba(180, 40, 40, 0.25);
+  border-color: rgba(180, 60, 60, 0.6);
+  color: #ff8877;
+}
+@keyframes badge-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.72; }
+}
+
+/* Right panel — captured pieces */
+.panel-right {
+  position: absolute; right: 1.2rem; top: 1.2rem;
+  padding: 0.8rem 1rem; min-width: 130px;
+}
+.captured { margin-bottom: 0.7rem; }
+.captured:last-child { margin-bottom: 0; }
+.captured .label {
+  font-size: 0.65rem;
+  color: #7a6a55;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 0.2rem;
+}
+.captured .pieces {
+  display: flex; flex-wrap: wrap; gap: 0.15rem;
+  font-size: 1.35rem; line-height: 1;
+}
+
+/* Bottom controls */
+.controls {
+  position: absolute; bottom: 2rem; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 0.8rem; pointer-events: auto;
+}
+.controls button {
+  background: rgba(16, 12, 8, 0.9);
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  color: #c9a84c;
+  padding: 0.55rem 1.1rem;
+  font-family: inherit;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+.controls button:hover {
+  background: rgba(201, 168, 76, 0.15);
+  border-color: #c9a84c;
+}
+.controls button:active {
+  background: rgba(201, 168, 76, 0.25);
+}
+
+/* Move history */
+.history {
+  position: absolute; bottom: 5rem; left: 50%; transform: translateX(-50%);
+  background: rgba(8, 6, 4, 0.75);
+  border: 1px solid rgba(201, 168, 76, 0.18);
+  padding: 0.4rem 0.9rem;
+  max-width: 420px; max-height: 70px;
+  overflow-y: auto;
+  font-size: 0.72rem;
+  color: #8a7560;
+  letter-spacing: 0.05em;
+  text-align: center;
+  pointer-events: auto;
+  white-space: nowrap;
+}
+.history::-webkit-scrollbar { width: 3px; }
+.history::-webkit-scrollbar-track { background: transparent; }
+.history::-webkit-scrollbar-thumb { background: rgba(201, 168, 76, 0.3); border-radius: 2px; }
+
+/* Checkmate overlay */
+.checkmate-overlay {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(5, 3, 2, 0.6);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.8s ease;
+}
+.checkmate-overlay.visible { opacity: 1; pointer-events: auto; }
+.checkmate-content {
+  text-align: center;
+  padding: 2rem 3rem;
+  border: 1px solid rgba(201, 168, 76, 0.4);
+  background: rgba(10, 8, 5, 0.9);
+}
+.checkmate-content h1 {
+  font-size: 1.8rem; letter-spacing: 0.3em;
+  color: #c9a84c; text-transform: uppercase; margin-bottom: 0.5rem;
+}
+.checkmate-content p {
+  font-size: 0.9rem; color: #a08060; margin-bottom: 1.5rem;
+}

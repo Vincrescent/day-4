@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.next/
+.vite/
+*.log
+
+# Heavy source assets — already on disk, re-downloadable (see ASSET_INVENTORY.md)
+chess_set_2k.blend/
+kenney_modular-dungeon-kit_1.0/
+kenney_particle-pack/
+kenney_smoke-particles/
+nebula-src/
+
+# Local scratch
+.env/

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Medieval 3D Chess</title>
+<link rel="stylesheet" href="src/styles.css" />
+</head>
+<body>
+
+<!-- Loading screen -->
+<div id="loader">
+  <div class="loader-inner">
+    <h2>Medieval 3D Chess</h2>
+    <p>Summoning the ancient chamber...</p>
+    <div class="loader-bar"><div class="loader-fill" id="loaderFill"></div></div>
+    <span id="loaderStatus">Initializing...</span>
+  </div>
+</div>
+
+<!-- HUD overlay -->
+<div id="ui" class="hidden">
+  <div class="panel panel-left">
+    <div class="turn-indicator" id="turnIndicator">White's turn</div>
+    <div id="checkBadge" class="state-badge hidden">Check!</div>
+    <div id="checkmateBadge" class="state-badge danger hidden">Checkmate</div>
+  </div>
+
+  <div class="panel panel-right">
+    <div class="captured">
+      <div class="label">White captures</div>
+      <div class="pieces" id="capturedWhitePieces"></div>
+    </div>
+    <div class="captured">
+      <div class="label">Black captures</div>
+      <div class="pieces" id="capturedBlackPieces"></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="btnNew">New Game</button>
+    <button id="btnUndo">Undo</button>
+    <button id="btnView">Reset View</button>
+  </div>
+
+  <div class="history" id="moveHistory"></div>
+</div>
+
+<script type="module" src="src/index.js"></script>
+</body>
+</html>
