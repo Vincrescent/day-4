@@ -1,23 +1,15 @@
 /**
- * ChessBoard — manages the board grid, highlights, and piece placement.
- * Supports both the GLB-loaded board mesh AND programmatic square overlays.
+ * ChessBoard — manages the board grid, highlights, raycast targets.
  */
 import * as THREE from 'three';
 import { CFG } from '../config.js';
-
-// Square color cycle for highlighting: highlight -> legal -> capture -> back
-const HIGHLIGHT_COLOR = new THREE.Color(CFG.COLORS.highlight);
-const LEGAL_COLOR     = new THREE.Color(0x3a6b3a);
-const SELECTED_COLOR  = new THREE.Color(0xc9a84c);
 
 export class ChessBoard {
   constructor(scene) {
     this.scene = scene;
     this.group = new THREE.Group();
-    // [row][col] -> Mesh (the square overlay)
-    this.squares = [];
-    // [squareId] -> Mesh
-    this.squareMap = {};
+    this.squares = [];           // [row][col] -> Mesh
+    this.squareMap = {};         // squareId -> Mesh
     this.raycastTargets = [];
   }
 
@@ -25,30 +17,30 @@ export class ChessBoard {
     const S = CFG.SQUARE_SIZE;
     const OFFSET = (S * 8) / 2 - S / 2;
 
-    // If a GLB board mesh was loaded, add it as base. Otherwise create procedural.
+    // Base: GLB board (already seated by Game._tryLoadBoardGLB) or procedural.
     if (loadedBoardMesh) {
+      loadedBoardMesh.traverse(c => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
       this.group.add(loadedBoardMesh);
     } else {
       this._buildBase(S, OFFSET);
     }
 
-    // Overlay squares for interaction + highlight
+    // Overlay squares for interaction + highlights.
     for (let row = 0; row < 8; row++) {
       this.squares[row] = [];
       for (let col = 0; col < 8; col++) {
         const sq = new THREE.Mesh(
           new THREE.PlaneGeometry(S, S),
           new THREE.MeshStandardMaterial({
-            color: (row + col) % 2 === 0 ? 0xd4b896 : 0x3d2b1f,
-            roughness: 0.75,
-            metalness: 0.15,
-            transparent: true,
-            opacity: 0.88,
+            color: (row + col) % 2 === 0 ? CFG.COLORS.boardLight : CFG.COLORS.boardDark,
+            roughness: 0.80,
+            metalness: 0.05,
+            transparent: false,
           })
         );
         const x = col * S - OFFSET;
-        const z = -(row * S - OFFSET); // flip Z so a1 is bottom-left
-        sq.position.set(x, CFG.BOARD_OFFSET_Y + 0.002, z);
+        const z = row * S - OFFSET; // rank 1 (row 7) at +Z (near camera), rank 8 (row 0) at -Z (far)
+        sq.position.set(x, CFG.BOARD_OFFSET_Y + 0.005, z);
         sq.rotation.x = -Math.PI / 2;
         const id = `${String.fromCharCode(97 + col)}${8 - row}`;
         sq.userData = { type: 'square', id, row, col };
@@ -59,16 +51,13 @@ export class ChessBoard {
         this.raycastTargets.push(sq);
       }
     }
-
-    // Add all group children to raycast targets (for pieces)
     this.sceneGroup = this.group;
     this.scene.add(this.group);
   }
 
   _buildBase(S, OFFSET) {
-    // Procedural stone board surface
     const mat = new THREE.MeshStandardMaterial({
-      color: 0x3d3228, roughness: 0.85, metalness: 0.1,
+      color: CFG.COLORS.daisStone, roughness: 0.85, metalness: 0.1,
     });
     const base = new THREE.Mesh(new THREE.BoxGeometry(S * 8 + 0.4, 0.05, S * 8 + 0.4), mat);
     base.position.y = CFG.BOARD_OFFSET_Y;
@@ -84,16 +73,16 @@ export class ChessBoard {
     const row = 8 - parseInt(id[1]);
     const S = CFG.SQUARE_SIZE;
     const OFFSET = (S * 8) / 2 - S / 2;
-    return new THREE.Vector3(col * S - OFFSET, CFG.BOARD_OFFSET_Y + 0.01, -(row * S - OFFSET));
+    return new THREE.Vector3(col * S - OFFSET, CFG.BOARD_OFFSET_Y + 0.01, row * S - OFFSET);
   }
 
   highlightSquare(id, color, durationMs = 600) {
     const sq = this.squareMap[id];
     if (!sq) return;
-    sq.material.emissive = color || HIGHLIGHT_COLOR;
+    sq.material.emissive.copy(color ?? CFG.COLORS.highlight);
     sq.material.emissiveIntensity = 0.55;
     setTimeout(() => {
-      if (sq.material) { sq.material.emissiveIntensity = 0; }
+      if (sq.material) sq.material.emissiveIntensity = 0;
     }, durationMs);
   }
 
@@ -103,29 +92,28 @@ export class ChessBoard {
         if (sq?.material) sq.material.emissiveIntensity = 0;
   }
 
-  highlightLegalMoves(moves, color = LEGAL_COLOR) {
+  highlightLegalMoves(moves, color = CFG.COLORS.legalMove) {
     this.clearAllHighlights();
-    moves.forEach(id => {
+    for (const id of moves) {
       const sq = this.squareMap[id];
-      if (!sq) return;
-      sq.material.color.lerp(color, 0.35);
-      sq.material.emissive = color;
+      if (!sq) continue;
+      sq.material.emissive.copy(color);
       sq.material.emissiveIntensity = 0.3;
-    });
+    }
   }
 
   resetHighlights() {
-    for (const row of this.squares)
-      for (const sq of row) {
-        if (!sq.material) continue;
-        const key = sq.userData.id;
-        if (key) {
-          const col = key.charCodeAt(0) - 97;
-          const row2 = 8 - parseInt(key[1]);
-          sq.material.color.set((row2 + col) % 2 === 0 ? 0xd4b896 : 0x3d2b1f);
-          sq.material.emissive.setHex(0x000000);
-          sq.material.emissiveIntensity = 0;
-        }
+    const S = CFG.SQUARE_SIZE;
+    const OFFSET = (S * 8) / 2 - S / 2;
+    for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 8; col++) {
+        const sq = this.squares[row][col];
+        if (!sq || !sq.material) continue;
+        const light = (row + col) % 2 === 0;
+        sq.material.color.copy(light ? CFG.COLORS.boardLight : CFG.COLORS.boardDark);
+        sq.material.emissive.setHex(0x000000);
+        sq.material.emissiveIntensity = 0;
       }
+    }
   }
 }

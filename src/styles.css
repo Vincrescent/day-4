@@ -174,25 +174,65 @@ canvas { display: block; }
 .history::-webkit-scrollbar-track { background: transparent; }
 .history::-webkit-scrollbar-thumb { background: rgba(201, 168, 76, 0.3); border-radius: 2px; }
 
-/* Checkmate overlay */
-.checkmate-overlay {
-  position: fixed; inset: 0; z-index: 50;
-  background: rgba(5, 3, 2, 0.6);
+/* ---------- Promotion dialog ---------- */
+#promoOverlay {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgba(5, 3, 2, 0.75);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+#promoOverlay.visible { opacity: 1; pointer-events: auto; }
+.promo-panel {
+  text-align: center; padding: 1.5rem 2rem;
+  border: 1px solid rgba(201, 168, 76, 0.4);
+  background: rgba(12, 9, 6, 0.95);
+}
+.promo-title {
+  font-size: 1.1rem; letter-spacing: 0.2em;
+  color: #c9a84c; text-transform: uppercase; margin-bottom: 1rem;
+}
+.promo-choices { display: flex; gap: 0.8rem; }
+.promo-btn {
+  width: 72px; height: 72px;
+  background: rgba(30, 22, 14, 0.9);
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  cursor: pointer; border-radius: 4px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 0.25rem; transition: all 0.15s;
+}
+.promo-btn:hover {
+  background: rgba(201, 168, 76, 0.2);
+  border-color: #c9a84c; transform: scale(1.06);
+}
+.promo-btn .sym { font-size: 2rem; line-height: 1; }
+.promo-btn .lbl { font-size: 0.6rem; color: #a08060; letter-spacing: 0.08em; text-transform: uppercase; }
+
+/* ---------- Game over overlay ---------- */
+#gameOverOverlay {
+  position: fixed; inset: 0; z-index: 80;
+  background: rgba(5, 3, 2, 0.72);
   display: flex; align-items: center; justify-content: center;
   opacity: 0; pointer-events: none;
   transition: opacity 0.8s ease;
 }
-.checkmate-overlay.visible { opacity: 1; pointer-events: auto; }
-.checkmate-content {
-  text-align: center;
-  padding: 2rem 3rem;
+#gameOverOverlay.visible { opacity: 1; pointer-events: auto; }
+#gameOverOverlay.hidden { display: none; }
+.gameover-panel {
+  text-align: center; padding: 2rem 3rem;
   border: 1px solid rgba(201, 168, 76, 0.4);
-  background: rgba(10, 8, 5, 0.9);
+  background: rgba(10, 8, 5, 0.92);
 }
-.checkmate-content h1 {
-  font-size: 1.8rem; letter-spacing: 0.3em;
-  color: #c9a84c; text-transform: uppercase; margin-bottom: 0.5rem;
+.gameover-panel h1 {
+  font-size: 1.6rem; letter-spacing: 0.3em;
+  color: #c9a84c; text-transform: uppercase; margin-bottom: 0.4rem;
 }
-.checkmate-content p {
-  font-size: 0.9rem; color: #a08060; margin-bottom: 1.5rem;
+.gameover-panel p { font-size: 0.95rem; color: #a08060; margin-bottom: 1.5rem; }
+.play-btn {
+  background: rgba(20, 15, 10, 0.9); border: 1px solid rgba(201, 168, 76, 0.4);
+  color: #c9a84c; padding: 0.6rem 1.4rem;
+  font-family: inherit; font-size: 0.85rem; letter-spacing: 0.12em;
+  text-transform: uppercase; cursor: pointer; transition: all 0.2s;
 }
+.play-btn:hover { background: rgba(201, 168, 76, 0.2); border-color: #c9a84c; }

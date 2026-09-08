@@ -23,14 +23,14 @@ export class ThreeJSEngine {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.15;
+    this.renderer.toneMappingExposure = 0.70;
     document.body.appendChild(this.renderer.domElement);
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
     this.bloom = new UnrealBloomPass(
       new THREE.Vector2(window.innerWidth, window.innerHeight),
-      0.35, 0.55, 0.82
+      0.20, 0.45, 0.85
     );
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
@@ -39,9 +39,9 @@ export class ThreeJSEngine {
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.07;
     this.controls.minDistance = 4;
-    this.controls.maxDistance = 15;
+    this.controls.maxDistance = 9.5;
     this.controls.maxPolarAngle = Math.PI / 2 - 0.06;
-    this.controls.minPolarAngle = 0.25;
+    this.controls.minPolarAngle = 0.2;
     this.controls.target.set(0, 1.0, 0);
     this.controls.enabled = false;
 

@@ -48,12 +48,12 @@ export class UIManager {
   }
 
   showCheck(on) {
-    if (this.el.check) this.el.check.classList.toggle('hidden', !on);
+    if (this.el.check) this.el.check.style.display = on ? 'inline-block' : 'none';
   }
 
   showCheckmate(on, winner) {
     if (!this.el.checkmate) return;
-    this.el.checkmate.classList.toggle('hidden', !on);
+    this.el.checkmate.style.display = on ? 'inline-block' : 'none';
     if (on && winner) this.el.checkmate.textContent = 'Checkmate \u2014 ' + winner + ' wins';
   }
 
@@ -78,7 +78,8 @@ export class UIManager {
 
   showGameOver(title, sub, onBtn) {
     if (!this.el.gameOver) return;
-    this.el.gameOver.classList.toggle('visible', true);
+    this.el.gameOver.classList.remove('hidden');
+    this.el.gameOver.classList.add('visible');
     if (this.el.gameOverTitle) this.el.gameOverTitle.textContent = title;
     if (this.el.gameOverSub) this.el.gameOverSub.textContent = sub;
     const btn = document.getElementById('btnGameOverNew');
@@ -90,6 +91,9 @@ export class UIManager {
     }
   }
   hideGameOver() {
-    if (this.el.gameOver) this.el.gameOver.classList.remove('visible');
+    if (this.el.gameOver) {
+      this.el.gameOver.classList.remove('visible');
+      this.el.gameOver.classList.add('hidden');
+    }
   }
 }

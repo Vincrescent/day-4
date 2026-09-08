@@ -12,18 +12,35 @@
 <div id="loader">
   <div class="loader-inner">
     <h2>Medieval 3D Chess</h2>
-    <p>Summoning the ancient chamber...</p>
+    <p>Summoning the ancient chamber…</p>
     <div class="loader-bar"><div class="loader-fill" id="loaderFill"></div></div>
-    <span id="loaderStatus">Initializing...</span>
+    <span id="loaderStatus">Initializing…</span>
+  </div>
+</div>
+
+<!-- Promotion selection overlay -->
+<div id="promoOverlay">
+  <div class="promo-panel">
+    <div class="promo-title">Promote Pawn</div>
+    <div id="promoChoices" class="promo-choices"></div>
+  </div>
+</div>
+
+<!-- Game over overlay (hidden by default via opacity/pointer-events; .visible reveals it) -->
+<div id="gameOverOverlay">
+  <div class="gameover-panel">
+    <h1 id="gameOverTitle">Checkmate</h1>
+    <p id="gameOverSub">White wins!</p>
+    <button id="btnGameOverNew" class="play-btn">Play Again</button>
   </div>
 </div>
 
 <!-- HUD overlay -->
 <div id="ui" class="hidden">
   <div class="panel panel-left">
-    <div class="turn-indicator" id="turnIndicator">White's turn</div>
-    <div id="checkBadge" class="state-badge hidden">Check!</div>
-    <div id="checkmateBadge" class="state-badge danger hidden">Checkmate</div>
+    <div class="turn-indicator" id="turnIndicator">White to move</div>
+    <div id="checkBadge" class="state-badge danger" style="display:none">Check!</div>
+    <div id="checkmateBadge" class="state-badge danger" style="display:none">Checkmate</div>
   </div>
 
   <div class="panel panel-right">

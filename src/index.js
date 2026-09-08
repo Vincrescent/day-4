@@ -2,7 +2,7 @@
  * Medieval 3D Chess — Application entry point
  * Bootstrap the Game engine when the DOM is ready.
  */
-import { Game } from './main.js';
+import { Game } from './systems/Game.js';
 
 function boot() {
   window.game = new Game();
