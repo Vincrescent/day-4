@@ -128,6 +128,20 @@ export class UIManager {
     if (btn) btn.textContent = flipped ? 'Flip \u21BB' : 'Flip \u21BA';
   }
 
+  // ─── PAUSE BUTTON (AI vs AI) ──────────────────────────────────
+  showPauseBtn(visible) {
+    const btn = document.getElementById('btnPause');
+    if (btn) {
+      btn.style.display = visible ? '' : 'none';
+      btn.textContent = '⏸ Pause';
+    }
+  }
+
+  showPauseBtnState(paused) {
+    const btn = document.getElementById('btnPause');
+    if (btn) btn.textContent = paused ? '▶ Resume' : '⏸ Pause';
+  }
+
   // ─── TOAST ────────────────────────────────────────────────────
   showToast(msg, duration = 2500) {
     if (!this.el.toast) return;
@@ -196,18 +210,20 @@ export class UIManager {
     // Toggle difficulty visibility
     if (modeSelect && diffRow) {
       modeSelect.onchange = () => {
-        diffRow.style.display = modeSelect.value === 'ai' ? '' : 'none';
+        diffRow.style.display = (modeSelect.value === 'ai' || modeSelect.value === 'aivai') ? '' : 'none';
       };
     }
 
     const startBtn = form.querySelector('.start-btn');
     startBtn.onclick = () => {
-      const vsAI = modeSelect ? modeSelect.value === 'ai' : false;
+      const mode = modeSelect ? modeSelect.value : 'ai';
+      const vsAI = mode === 'ai';
+      const aiVsAi = mode === 'aivai';
       const difficulty = diffSelect ? diffSelect.value : 'medium';
       const timeMode = timeSelect ? timeSelect.value : 'unlimited';
       overlay.classList.remove('visible');
       overlay.classList.add('hidden');
-      onStart({ vsAI, difficulty, timeMode, aiColor: 'b' });
+      onStart({ vsAI, aiVsAi, difficulty, timeMode, aiColor: 'b' });
     };
   }
 

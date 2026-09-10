@@ -61,9 +61,11 @@ export class Game {
 
     // --- Feature flags ---
     this.vsAI = false;          // true = play vs computer
+    this.aiVsAi = false;        // true = computer vs computer (spectator mode)
     this.aiColor = 'b';         // AI plays black by default
     this.boardFlipped = false;  // true = black at bottom
     this.undosRemaining = { w: 1, b: 1 }; // per side undo limit
+    this.aiPaused = false;      // pause AI vs AI
 
     // --- Drag-and-drop ---
     this.dragging = false;
@@ -133,7 +135,8 @@ export class Game {
     // Show start menu
     this.ui.showStartMenu((options) => {
       this.vsAI = options.vsAI;
-      if (this.vsAI) {
+      this.aiVsAi = options.aiVsAi || false;
+      if (this.vsAI || this.aiVsAi) {
         this.ai.setDifficulty(options.difficulty || 'medium');
         this.aiColor = options.aiColor || 'b';
       }
@@ -162,6 +165,13 @@ export class Game {
     // If AI is white, make its move
     if (this.vsAI && this.aiColor === 'w') {
       setTimeout(() => this._aiMove(), CFG.CAMERA.INTRO_DUR * 1000 + 500);
+    }
+
+    // AI vs AI: start the auto-play loop
+    if (this.aiVsAi) {
+      this.aiPaused = false;
+      this.ui.showPauseBtn(true);
+      setTimeout(() => this._aiVsAiMove(), CFG.CAMERA.INTRO_DUR * 1000 + 500);
     }
   }
 
@@ -202,7 +212,8 @@ export class Game {
     const byId = id => document.getElementById(id);
     byId('btnNew')?.addEventListener('click', () => this.ui.showStartMenu((options) => {
       this.vsAI = options.vsAI;
-      if (this.vsAI) {
+      this.aiVsAi = options.aiVsAi || false;
+      if (this.vsAI || this.aiVsAi) {
         this.ai.setDifficulty(options.difficulty || 'medium');
         this.aiColor = options.aiColor || 'b';
       }
@@ -231,10 +242,12 @@ export class Game {
         document.exitFullscreen().catch(() => {});
       }
     });
+    byId('btnPause')?.addEventListener('click', () => this.toggleAiPause());
     byId('btnGameOverNew')?.addEventListener('click', () => {
       this.ui.showStartMenu((options) => {
         this.vsAI = options.vsAI;
-        if (this.vsAI) {
+        this.aiVsAi = options.aiVsAi || false;
+        if (this.vsAI || this.aiVsAi) {
           this.ai.setDifficulty(options.difficulty || 'medium');
           this.aiColor = options.aiColor || 'b';
         }
@@ -276,6 +289,7 @@ export class Game {
   // ─── POINTER: DOWN ──────────────────────────────────────────────
   _onPointerDown(event) {
     if (!this.running || this.state !== 'playing' || this.animating) return;
+    if (this.aiVsAi) return; // Spectator mode — no player input
     if (this.vsAI && this.chess.turn() === this.aiColor) return; // Not player's turn
     this.audio.init();
     if (event.button !== 0) return;
@@ -607,6 +621,44 @@ export class Game {
     });
   }
 
+  // ─── AI VS AI AUTO-PLAY ─────────────────────────────────────────
+  async _aiVsAiMove() {
+    if (this.state !== 'playing' || !this.aiVsAi) return;
+    if (this.aiPaused) return; // paused, wait for resume
+
+    this.ui.showThinking(true);
+    const move = await this.ai.findBestMove(this.chess.fen());
+    this.ui.showThinking(false);
+    if (!move || this.state !== 'playing' || !this.aiVsAi) return;
+
+    const result = this.chess.makeMove(move.from, move.to, move.promotion || 'q');
+    if (!result) return;
+
+    await this._finishMove({
+      from: move.from,
+      to: move.to,
+      captured: result.captured || null,
+      flags: result.flags || '',
+      color: result.color,
+      promotion: move.promotion || null,
+    });
+
+    // Continue the loop if game is still playing
+    if (this.state === 'playing' && this.aiVsAi && !this.aiPaused) {
+      setTimeout(() => this._aiVsAiMove(), 600);
+    }
+  }
+
+  toggleAiPause() {
+    if (!this.aiVsAi) return;
+    this.aiPaused = !this.aiPaused;
+    this.ui.showPauseBtnState(this.aiPaused);
+    if (!this.aiPaused && this.state === 'playing') {
+      // Resume
+      setTimeout(() => this._aiVsAiMove(), 300);
+    }
+  }
+
   _handleTimeout(side) {
     this.state = 'gameover';
     const winner = side === 'w' ? 'Black' : 'White';
@@ -741,6 +793,15 @@ export class Game {
 
     if (this.vsAI && this.aiColor === 'w') {
       setTimeout(() => this._aiMove(), 500);
+    }
+
+    // AI vs AI auto-play
+    if (this.aiVsAi) {
+      this.aiPaused = false;
+      this.ui.showPauseBtn(true);
+      setTimeout(() => this._aiVsAiMove(), 500);
+    } else {
+      this.ui.showPauseBtn(false);
     }
   }
 
