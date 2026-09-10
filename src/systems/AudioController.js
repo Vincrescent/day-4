@@ -1,13 +1,13 @@
 /**
  * AudioController — Web Audio synthesized SFX + gothic ambient.
- * No external audio files (to avoid licensing issues); everything is
- * generated. Architecture supports plugging in real samples later.
+ * Features: random pitch variation, mute toggle, volume control.
  */
 export class AudioController {
   constructor() {
     this.ctx = null;
     this.master = null;
     this.enabled = true;
+    this.muted = false;
     this.ambientNode = null;
     this.rainNode = null;
     this.nextThunderTime = 0;
@@ -18,12 +18,29 @@ export class AudioController {
     try {
       this.ctx = new (window.AudioContext || window.webkitAudioContext)();
       this.master = this.ctx.createGain();
-      this.master.gain.value = 0.6;
+      this.master.gain.value = this.muted ? 0 : 0.6;
       this.master.connect(this.ctx.destination);
     } catch (e) {
       console.warn('[Audio] Web Audio unavailable:', e);
       this.enabled = false;
     }
+  }
+
+  toggleMute() {
+    this.muted = !this.muted;
+    if (this.master) this.master.gain.value = this.muted ? 0 : 0.6;
+    return this.muted;
+  }
+
+  setMuted(m) {
+    this.muted = m;
+    if (this.master) this.master.gain.value = m ? 0 : 0.6;
+  }
+
+  // Random pitch variation: ±semi semitones around base freq
+  _rp(freq, semi = 1.5) {
+    const factor = Math.pow(2, ((Math.random() - 0.5) * 2 * semi) / 12);
+    return freq * factor;
   }
 
   _tone(freq, dur, type = 'sine', vol = 0.2, when = 0) {
@@ -59,67 +76,64 @@ export class AudioController {
     src.start(t0);
   }
 
-  // --- Gothic Stone Slide for piece selection ---
+  // --- Gothic Stone Slide for piece selection (with pitch variation) ---
   playSelect() {
-    this._noise(0.06, 0.08, 0, 1200);
-    this._tone(400, 0.04, 'sine', 0.06);
+    this._noise(0.06, 0.08, 0, this._rp(1200, 3));
+    this._tone(this._rp(400, 2), 0.04, 'sine', 0.06);
   }
 
-  // --- Deep Stone Thud for moves ---
+  // --- Deep Stone Thud for moves (with pitch variation) ---
   playMove() {
-    this._tone(70, 0.18, 'sine', 0.35);
-    this._tone(110, 0.12, 'triangle', 0.15, 0.02);
-    this._noise(0.06, 0.12, 0.01, 250);
+    this._tone(this._rp(70, 2), 0.18, 'sine', 0.35);
+    this._tone(this._rp(110, 2), 0.12, 'triangle', 0.15, 0.02);
+    this._noise(0.06, 0.12, 0.01, this._rp(250, 3));
   }
 
-  // --- Heavy Stone Impact for captures ---
+  // --- Heavy Stone Impact for captures (with pitch variation) ---
   playCapture() {
-    this._tone(50, 0.25, 'sine', 0.4);
-    this._noise(0.12, 0.25, 0, 600);
-    this._tone(85, 0.2, 'triangle', 0.25, 0.03);
-    this._noise(0.08, 0.15, 0.1, 1200);
+    this._tone(this._rp(50, 2), 0.25, 'sine', 0.4);
+    this._noise(0.12, 0.25, 0, this._rp(600, 3));
+    this._tone(this._rp(85, 2), 0.2, 'triangle', 0.25, 0.03);
+    this._noise(0.08, 0.15, 0.1, this._rp(1200, 3));
   }
 
-  // --- Cathedral Bell Toll for Check ---
+  // --- Cathedral Bell Toll for Check (with pitch variation) ---
   playCheck() {
-    // Deep bell toll: fundamental + harmonics with decay
-    this._tone(180, 0.9, 'sine', 0.3);
-    this._tone(360, 0.7, 'sine', 0.12, 0.01);
-    this._tone(540, 0.5, 'sine', 0.06, 0.02);
-    this._tone(720, 0.3, 'sine', 0.03, 0.03);
-    this._noise(0.08, 0.06, 0, 3000); // metallic shimmer
+    const base = this._rp(180, 1);
+    this._tone(base, 0.9, 'sine', 0.3);
+    this._tone(base * 2, 0.7, 'sine', 0.12, 0.01);
+    this._tone(base * 3, 0.5, 'sine', 0.06, 0.02);
+    this._tone(base * 4, 0.3, 'sine', 0.03, 0.03);
+    this._noise(0.08, 0.06, 0, this._rp(3000, 2));
   }
 
   // --- Grand Cathedral Chord for Checkmate ---
   playCheckmate() {
-    // Triple bell toll + low bass drone
     [130, 195, 260].forEach((f, i) => {
-      this._tone(f, 1.5, 'sine', 0.25, i * 0.3);
-      this._tone(f * 2, 1.0, 'sine', 0.08, i * 0.3 + 0.02);
+      const rp = this._rp(f, 0.5);
+      this._tone(rp, 1.5, 'sine', 0.25, i * 0.3);
+      this._tone(rp * 2, 1.0, 'sine', 0.08, i * 0.3 + 0.02);
     });
-    // Bass organ note
-    this._tone(65, 2.0, 'sine', 0.2, 0);
-    this._tone(97, 1.8, 'sine', 0.1, 0.15);
-    this._noise(0.15, 0.08, 0.8, 800);
+    this._tone(this._rp(65, 1), 2.0, 'sine', 0.2, 0);
+    this._tone(this._rp(97, 1), 1.8, 'sine', 0.1, 0.15);
+    this._noise(0.15, 0.08, 0.8, this._rp(800, 2));
   }
 
   // --- Magical ascent for promotion ---
   playPromotion() {
-    this._tone(330, 0.15, 'sine', 0.2);
-    this._tone(440, 0.2, 'sine', 0.18, 0.12);
-    this._tone(660, 0.25, 'sine', 0.15, 0.25);
-    this._tone(880, 0.3, 'sine', 0.12, 0.4);
+    this._tone(this._rp(330, 1), 0.15, 'sine', 0.2);
+    this._tone(this._rp(440, 1), 0.2, 'sine', 0.18, 0.12);
+    this._tone(this._rp(660, 1), 0.25, 'sine', 0.15, 0.25);
+    this._tone(this._rp(880, 1), 0.3, 'sine', 0.12, 0.4);
   }
 
   // --- Gothic Thunder Rumble ---
   playThunder() {
     if (!this.ctx || !this.enabled) return;
-    // Low rumble noise
     const dur = 1.2 + Math.random() * 1.5;
     const len = Math.floor(this.ctx.sampleRate * dur);
     const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
     const data = buf.getChannelData(0);
-    // Shaped rumble: starts hard, decays with ripples
     for (let i = 0; i < len; i++) {
       const t = i / len;
       const env = Math.exp(-t * 3) * (1 + Math.sin(t * 12) * 0.3);
@@ -137,13 +151,12 @@ export class AudioController {
     src.start();
   }
 
-  // --- Continuous Rain Noise (filtered white noise loop) ---
+  // --- Continuous Rain Noise ---
   startAmbient() {
     if (!this.ctx || this.rainNode) return;
 
-    // Rain: band-passed noise at high freq
     const sampleRate = this.ctx.sampleRate;
-    const len = sampleRate * 2; // 2-second loop
+    const len = sampleRate * 2;
     const buf = this.ctx.createBuffer(1, len, sampleRate);
     const data = buf.getChannelData(0);
     for (let i = 0; i < len; i++) {
@@ -153,26 +166,23 @@ export class AudioController {
     src.buffer = buf;
     src.loop = true;
 
-    // High-pass filter to sound like rain
     const hp = this.ctx.createBiquadFilter();
     hp.type = 'highpass';
     hp.frequency.value = 4000;
     hp.Q.value = 0.3;
 
-    // Bandpass for the "patter" texture
     const bp = this.ctx.createBiquadFilter();
     bp.type = 'bandpass';
     bp.frequency.value = 6500;
     bp.Q.value = 0.8;
 
     const gain = this.ctx.createGain();
-    gain.gain.value = 0.06; // very subtle
+    gain.gain.value = 0.06;
 
     src.connect(hp).connect(bp).connect(gain).connect(this.master);
     src.start();
     this.rainNode = { src, gain };
 
-    // Low drone (medieval organ pedal)
     const drone = this.ctx.createOscillator();
     drone.type = 'sine';
     drone.frequency.value = 50;
@@ -182,11 +192,9 @@ export class AudioController {
     drone.start();
     this.ambientNode = { osc: drone, gain: droneGain };
 
-    // Schedule random thunder checks
     this.nextThunderTime = this.ctx.currentTime + 8 + Math.random() * 10;
   }
 
-  // Call from game loop to trigger random thunder
   updateAmbient() {
     if (!this.ctx || !this.rainNode) return;
     if (this.ctx.currentTime > this.nextThunderTime) {

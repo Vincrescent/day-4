@@ -1,5 +1,5 @@
 /**
- * CameraController — cinematic intro + orbit + focus transitions + shake.
+ * CameraController — cinematic intro + orbit + focus transitions + shake + flip.
  */
 import * as THREE from 'three';
 import { CFG } from '../config.js';
@@ -18,6 +18,7 @@ export class CameraController {
     this.focusDur = 0.9;
     this.shakeT = 0;
     this.shakeMag = 0;
+    this.isFlipped = false;
   }
 
   startIntro() {
@@ -35,7 +36,15 @@ export class CameraController {
   }
 
   resetView() {
+    this.isFlipped = false;
     this.focusTo.set(0, 3.6, 7.2);
+    this.focusTargetTo.set(0, CFG.BOARD_OFFSET_Y + 0.2, 0);
+    this._startFocus(this.focusTo, this.focusTargetTo, 1.1);
+  }
+
+  flipView() {
+    this.isFlipped = true;
+    this.focusTo.set(0, 3.6, -7.2);
     this.focusTargetTo.set(0, CFG.BOARD_OFFSET_Y + 0.2, 0);
     this._startFocus(this.focusTo, this.focusTargetTo, 1.1);
   }
@@ -84,7 +93,7 @@ export class CameraController {
       this.controls.update();
     }
 
-    // Camera shake (decaying random offset)
+    // Camera shake
     if (this.shakeT > 0) {
       this.shakeT -= dt;
       const s = this.shakeMag * Math.max(0, this.shakeT) * 6;

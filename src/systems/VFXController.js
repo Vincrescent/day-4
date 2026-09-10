@@ -155,7 +155,7 @@ export class VFXController {
     this.active.push({ obj: sp, life: 1, decay: 0.03, isSprite: true, grow: 0.8 });
   }
 
-  // --- Move: magic circle ripple + cyan sparks under landing square ---
+  // --- Move: magic circle ripple + cyan sparks + glow trail ---
   movePuff(worldPos) {
     // Magic landing ring
     const ringGeo = new THREE.RingGeometry(0.2, 0.45, 24);
@@ -191,6 +191,32 @@ export class VFXController {
       this.active.push({
         obj: sp, life: 1, decay: 0.04, isSprite: true,
         vel: new THREE.Vector3(Math.cos(angle) * spd, 0.2 + Math.random() * 0.3, Math.sin(angle) * spd),
+      });
+    }
+  }
+
+  // --- Magic glow trail: spawn along path between from→to ---
+  moveTrail(fromPos, toPos) {
+    const steps = 6;
+    for (let i = 0; i < steps; i++) {
+      const t = (i + 1) / (steps + 1);
+      const p = new THREE.Vector3().lerpVectors(fromPos, toPos, t);
+      p.y += Math.sin(t * Math.PI) * 0.4; // arc
+      const mat = new THREE.SpriteMaterial({
+        map: this.magicTex || this.sparkTex,
+        color: new THREE.Color().setHSL(0.48 + t * 0.08, 0.9, 0.6),
+        transparent: true,
+        opacity: 0.6,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      });
+      const sp = new THREE.Sprite(mat);
+      sp.position.copy(p);
+      sp.scale.setScalar(0.18 + (1 - t) * 0.12);
+      this.scene.add(sp);
+      this.active.push({
+        obj: sp, life: 1, decay: 0.025 + i * 0.005,
+        isSprite: true, grow: 0.4,
       });
     }
   }

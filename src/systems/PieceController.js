@@ -1,12 +1,6 @@
 /**
  * PieceController — manages chess piece meshes, selection, movement.
- * 
- * Key design decisions:
- * - Loads chess_set.glb once; extracts one prototype Group per (type,color) from named nodes.
- * - Prototypes are TRANSFORMED CLONES of their source node — we strip parent transforms so each
- *   instance starts at origin and only carries the original mesh's geometry + materials.
- * - Materials are CLONED per prototype so one prototype's highlight does not cascade to others.
- * - Board scale factor bridges the GLB's ~0.55 m board size to our 8 u playfield.
+ * Added: hover glow, board flip rotation, memory-safe captureMesh.
  */
 import * as THREE from 'three';
 import { CFG } from '../config.js';
@@ -17,20 +11,13 @@ const PIECE_NAMES = [
 const TYPE_REVERSE = { k: 'king', q: 'queen', r: 'rook', b: 'bishop', n: 'knight', p: 'pawn' };
 
 function parsePieceName(name) {
-  // e.g. "piece_king_white", "piece_pawn_black_03"
   const m = name.match(/^piece_([a-z]+)_(white|black)(?:_\d+)?$/i);
   if (!m) return null;
   return { type: m[1].toLowerCase(), color: m[2].toLowerCase() };
 }
 
-/**
- * Build one prototype Group per (type, color).
- * We clone the SOURCE NODE (not its children directly) so that:
- *  - the GLB's local origin is preserved in the clone, and
- *  - any scale/rotation baked into the source node's matrix does NOT bleed into instances.
- */
 function buildProtos(gltf) {
-  const protos = new Map(); // "type_color" -> Group
+  const protos = new Map();
   const used = new Set();
 
   for (const child of gltf.scene.children) {
@@ -40,20 +27,15 @@ function buildProtos(gltf) {
     if (used.has(key)) continue;
     used.add(key);
 
-    // Clone the node itself — it becomes the prototype container.
-    // Its meshes will share material clones; the node's own matrix is identity.
     const protoGroup = child.clone();
     protoGroup.name = `proto_${key}`;
 
-    // Clone every material so highlights don't cascade between prototypes.
     protoGroup.traverse(c => {
       if (c.isMesh && c.material) {
         c.material = c.material.clone();
       }
     });
 
-    // Scale to playfield units (board 0.55m -> 8u, i.e. ×CFG.SET_SCALE).
-    // Then re-align the base to sit on y=0.
     protoGroup.scale.setScalar(CFG.SET_SCALE);
     const bb = new THREE.Box3().setFromObject(protoGroup);
     const baseY = -bb.min.y;
@@ -71,8 +53,23 @@ export class PieceController {
     this.assetMgr = assetMgr;
     this.pieces = new Map();      // squareId -> THREE.Group (instance)
     this.selected = null;
+    this.hovered = null;
     this.protos = new Map();      // "type_color" -> { group, baseY }
     this.loaded = false;
+    this.piecesGroup = new THREE.Group(); // container for flip rotation
+    this.scene.add(this.piecesGroup);
+
+    // Drag shadow disc (reusable)
+    this.dragShadow = new THREE.Mesh(
+      new THREE.CircleGeometry(0.35, 24),
+      new THREE.MeshBasicMaterial({
+        color: 0x000000, transparent: true, opacity: 0.4,
+        side: THREE.DoubleSide, depthWrite: false,
+      })
+    );
+    this.dragShadow.rotation.x = -Math.PI / 2;
+    this.dragShadow.visible = false;
+    this.scene.add(this.dragShadow);
   }
 
   async loadAndSetup(fen) {
@@ -85,15 +82,18 @@ export class PieceController {
   }
 
   placeFromFEN(fen) {
-    // Remove existing instances.
-    for (const [, g] of this.pieces) this.scene.remove(g);
+    // Remove existing instances
+    for (const [, g] of this.pieces) {
+      this.piecesGroup.remove(g);
+      this._disposeGroup(g);
+    }
     this.pieces.clear();
     this.selected = null;
 
     const [piecesStr] = fen.split(' ');
     const ranks = piecesStr.split('/');
     for (let r = 0; r < 8; r++) {
-      const rankNum = 8 - r; // r=0 is rank 8 (black side), r=7 is rank 1 (white side)
+      const rankNum = 8 - r;
       const rankStr = ranks[r];
       let col = 0;
       for (const ch of rankStr) {
@@ -119,6 +119,10 @@ export class PieceController {
     const proto = this.protos.get(key);
     if (proto) {
       const inst = proto.group.clone();
+      // Clone materials for isolation
+      inst.traverse(c => {
+        if (c.isMesh && c.material) c.material = c.material.clone();
+      });
       group.add(inst);
     } else {
       group.add(this._fallback(type, color));
@@ -127,8 +131,7 @@ export class PieceController {
     const p = this._squarePos(squareId);
     group.position.copy(p);
 
-    // Knights in the GLB were modeled facing away from their enemy.
-    // Rotate knights by 180 degrees so their snouts face forward into the battlefield!
+    // Knights face forward
     if (type === 'n') {
       group.rotation.y = Math.PI;
     }
@@ -139,7 +142,7 @@ export class PieceController {
         c.receiveShadow = true;
       }
     });
-    this.scene.add(group);
+    this.piecesGroup.add(group);
     this.pieces.set(squareId, group);
     return group;
   }
@@ -175,6 +178,7 @@ export class PieceController {
     return new THREE.Vector3(col * S - OFF, CFG.BOARD_OFFSET_Y + 0.01, row * S - OFF);
   }
 
+  // ─── SELECTION ────────────────────────────────────────────────
   select(squareId) {
     if (this.selected && this.selected !== squareId) this._highlight(this.selected, false);
     this.selected = squareId;
@@ -190,12 +194,58 @@ export class PieceController {
     if (!g) return;
     g.traverse(c => {
       if (c.isMesh && c.material && c.material.emissive) {
-        c.material.emissive.setHex(on ? CFG.COLORS.selected : 0x000000);
+        c.material.emissive.setHex(on ? 0xffcc00 : 0x000000);
         c.material.emissiveIntensity = on ? 0.35 : 0;
       }
     });
   }
 
+  // ─── HOVER ────────────────────────────────────────────────────
+  setHover(squareId, on) {
+    const g = this.pieces.get(squareId);
+    if (!g) return;
+    if (on && squareId !== this.selected) {
+      g.traverse(c => {
+        if (c.isMesh && c.material && c.material.emissive) {
+          c.material.emissive.setHex(0x886622);
+          c.material.emissiveIntensity = 0.2;
+        }
+      });
+      this.hovered = squareId;
+    } else if (!on && squareId !== this.selected) {
+      g.traverse(c => {
+        if (c.isMesh && c.material && c.material.emissive) {
+          c.material.emissive.setHex(0x000000);
+          c.material.emissiveIntensity = 0;
+        }
+      });
+      if (this.hovered === squareId) this.hovered = null;
+    }
+  }
+
+  // ─── BOARD FLIP ───────────────────────────────────────────────
+  setRotation(yRad) {
+    this.piecesGroup.rotation.y = yRad;
+  }
+
+  // ─── DRAG SHADOW ─────────────────────────────────────────────
+  showDragShadow(x, z) {
+    this.dragShadow.position.set(x, CFG.BOARD_OFFSET_Y + 0.008, z);
+    this.dragShadow.visible = true;
+  }
+
+  hideDragShadow() {
+    this.dragShadow.visible = false;
+  }
+
+  updateDragShadow(x, z) {
+    if (this.dragShadow.visible) {
+      this.dragShadow.position.x = x;
+      this.dragShadow.position.z = z;
+    }
+  }
+
+  // ─── MOVE ANIMATION ──────────────────────────────────────────
   async movePiece(from, to) {
     const mesh = this.pieces.get(from);
     if (!mesh) return false;
@@ -235,14 +285,20 @@ export class PieceController {
   replacePiece(squareId, type, color) {
     const oldMesh = this.pieces.get(squareId);
     if (oldMesh) {
-      this.scene.remove(oldMesh);
+      this.piecesGroup.remove(oldMesh);
+      this._disposeGroup(oldMesh);
       this.pieces.delete(squareId);
     }
     return this._place(type, color, squareId);
   }
 
+  // ─── CAPTURE WITH FULL DISPOSE (memory leak fix) ──────────────
   captureMesh(mesh) {
     if (!mesh) return;
+    // Remove from pieces map
+    for (const [key, val] of this.pieces) {
+      if (val === mesh) { this.pieces.delete(key); break; }
+    }
     const start = performance.now();
     const tick = () => {
       const t = Math.min((performance.now() - start) / CFG.ANIM.CAPTURE_DUR, 1);
@@ -250,9 +306,34 @@ export class PieceController {
       mesh.traverse(c => { if (c.isMesh && c.material) c.material.transparent = true; });
       if (t < 1) requestAnimationFrame(tick);
       else {
-        this.scene.remove(mesh);
+        this.piecesGroup.remove(mesh);
+        this._disposeGroup(mesh);
       }
     };
     tick();
+  }
+
+  // ─── DEEP DISPOSE (fix memory leaks) ──────────────────────────
+  _disposeGroup(group) {
+    group.traverse(c => {
+      if (c.isMesh) {
+        if (c.geometry) c.geometry.dispose();
+        if (c.material) {
+          if (Array.isArray(c.material)) {
+            c.material.forEach(m => {
+              if (m.map) m.map.dispose();
+              if (m.normalMap) m.normalMap.dispose();
+              if (m.roughnessMap) m.roughnessMap.dispose();
+              m.dispose();
+            });
+          } else {
+            if (c.material.map) c.material.map.dispose();
+            if (c.material.normalMap) c.material.normalMap.dispose();
+            if (c.material.roughnessMap) c.material.roughnessMap.dispose();
+            c.material.dispose();
+          }
+        }
+      }
+    });
   }
 }
