@@ -157,8 +157,15 @@ export class Environment {
     fill.position.set(-5.5, 4.0, -5.5);
     this.group.add(fill);
 
-    // Hemispheric ambient — very dark for gothic atmosphere.
-    const hemi = new THREE.HemisphereLight(0x1a1510, 0x040302, 0.35);
+    // Back-fill: warm light on the black side so pieces are visible.
+    const backFill = new THREE.SpotLight(0xeec88a, 12, 22, Math.PI / 4, 0.6, 1.8);
+    backFill.position.set(0, 6.0, -6.5);
+    backFill.target.position.set(0, CFG.BOARD_OFFSET_Y, -1.5);
+    backFill.castShadow = false;
+    this.group.add(backFill, backFill.target);
+
+    // Hemispheric ambient — slightly brighter for readability.
+    const hemi = new THREE.HemisphereLight(0x1a1510, 0x040302, 0.50);
     this.group.add(hemi);
 
     // Torches — warm flickering sconces on the walls (no shadow casting: 4 extra
